@@ -1,7 +1,7 @@
 # general setting
 trainer_name: mesh
 exp_type: demo
-data_root_dir: /mnt/projects/lyzhu/nba/data/release/training_data/mesh_release
+data_root_dir: /n/home12/aandre/NBA-Players/data/mesh_release
 processed_verts_dir: ${data_root_dir}/release/kedrick
 base_log_dir: ../log/mesh
 log_name: mesh-aug-SpiralTLNetV2-IMG_AtlasNet_Humans-slr0.001-ilr0.0003-bn16-aug
@@ -16,9 +16,12 @@ seed:
 
 # demo setting
 demo:
-  subdir: lbj_dunk
+  subdir: frame_150
+  starting_frame: 1
+  ending_frame: 120
   inp_dir: ../../results/${demo.subdir}
   out_dir: ../../results/${demo.subdir}
+  output_name: fultz
 
 # data setting
 dataset:

@@ -1,11 +1,11 @@
 # general setting
 trainer_name: mesh
 exp_type: train
-data_root_dir: /mnt/projects/lyzhu/nba/data/release/training_data/mesh_release
+data_root_dir: ../../data/mesh_release
 processed_verts_dir: ${data_root_dir}/release/kedrick
 base_log_dir: ../log/mesh
 body_part_list: ['head', 'arm', 'shoes', 'shirt', 'pant', 'leg']
-log_name: 
+log_name: test
 custom_postfix: 'aug'
 checkpoint_dir: 
 iden_ckpt_prefix: 

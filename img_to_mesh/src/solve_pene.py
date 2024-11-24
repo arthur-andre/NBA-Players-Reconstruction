@@ -145,7 +145,6 @@ def readObj(file_path):
 
 def iterative_solve_collision(verts_tensor, face_tensor, face_segm_tensor, edge_target, device, 
     iter_num=10, max_collisions=8, step_size=0.5, w_data=1, w_lap=0.1, w_el=0.1):
-    
     search_tree = BVH(max_collisions=max_collisions)
     bs, nv = verts_tensor.shape[:2]
     bs, nf = face_tensor.shape[:2]
@@ -177,7 +176,6 @@ def iterative_solve_collision(verts_tensor, face_tensor, face_segm_tensor, edge_
         # all valid col pairs -> body and garment valid col pairs. (store face tensor index)
         body_garm_col_idx = torch.zeros(leg_num,2).long().to(device)
         body_garm_col_idx[0:leg_num] = val_col_idx[leg_mask_idx]
-
         # garment: 0 to index
         col_garment_face = face_tensor[0,body_garm_col_idx[:,0]] #(filterd collide_num, 3)
         col_garment_verts = verts_tensor[0,col_garment_face] # (filterd collide num,3,3)
@@ -216,7 +214,6 @@ def iterative_solve_collision(verts_tensor, face_tensor, face_segm_tensor, edge_
         direction = direction / counts.unsqueeze_(-1).float()
         verts_tensor[0,out_verts_vidx_nodup] -= step_size * direction * offset.unsqueeze_(-1)
 
-
         ''' optimize non-detected vertices '''
         # get non-detected vertices id
         all_vid = np.arange(verts_tensor.shape[1]).tolist()
@@ -242,8 +239,31 @@ def iterative_solve_collision(verts_tensor, face_tensor, face_segm_tensor, edge_
                 return loss
             optimizer.step(closure)
 
+def process_obj_file(obj_path, device, faces_segm, seg_map_dict):
+    print(f"Processing {obj_path}")
+
+    cur_verts, _, cur_faces = readObj(obj_path)
+    cur_faces -= 1
+    # Init edge length target
+    edge_target = init_edge_gt(cur_verts, cur_faces)
+    edge_target = np.array(edge_target)
+    edge_target = torch.from_numpy(edge_target).float().to(device)
+    edge_target = edge_target.unsqueeze(1).expand(3, 1, -1)
+    
+    # Convert to batch tensor
+    verts_tensor = torch.from_numpy(cur_verts).unsqueeze(0).float().to(device)
+    face_tensor = torch.from_numpy(cur_faces).unsqueeze(0).long().to(device)
+    face_segm_tensor = torch.from_numpy(faces_segm).long().to(device)
+    
+    iterative_solve_collision(verts_tensor, face_tensor, face_segm_tensor, edge_target, device, step_size=0.5)
+    verts_np = verts_tensor[0].detach().cpu().numpy()
+    writeObj(verts_np, obj_path, obj_path.replace('.obj', '_modified.obj'))
+    
+    os.rename(obj_path, obj_path.replace('.obj', '_origin.obj'))
+    os.rename(obj_path.replace('.obj', '_modified.obj'), obj_path)
+
 def main():
-    obj_path = '../../results/lbj_dunk/objs/lbj_dunk_0003.obj'
+    obj_folder_path = '../../results/frame_151/objs'
     device = torch.device('cuda')
 
     seg_map_dict = {
@@ -259,25 +279,11 @@ def main():
     }
     faces_segm = np.load('../data/mesh/seg_files/faces_segm_lr.npy')
 
-    cur_verts, _, cur_faces = readObj(obj_path)
-    cur_faces -= 1
-    # init edge length target
-    edge_target = init_edge_gt(cur_verts, cur_faces)
-    edge_target = np.array(edge_target)
-    edge_target = torch.from_numpy(edge_target).float().to(device)
-    edge_target = edge_target.unsqueeze(1).expand(3,1,-1)
-    # convert to batch tensor
-    verts_tensor = torch.from_numpy(cur_verts).unsqueeze(0).float().to(device)
-    face_tensor = torch.from_numpy(cur_faces).unsqueeze(0).long().to(device)
-    face_segm_tensor = torch.from_numpy(faces_segm).long().to(device)
-    iterative_solve_collision(verts_tensor, face_tensor, face_segm_tensor, edge_target, device, step_size=0.5)
-
-    verts_np = verts_tensor[0].detach().cpu().numpy()
-    writeObj(verts_np, obj_path, obj_path.replace('.obj','_modifed.obj'))
-    os.rename(obj_path, obj_path.replace('.obj', '_origin.obj'))
-    os.rename(obj_path.replace('.obj','_modifed.obj'), obj_path)
-
-
+    # Process each .obj file in the directory
+    for file in os.listdir(obj_folder_path):
+        if file.endswith('.obj') and ('origin' not in file):
+            obj_path = os.path.join(obj_folder_path, file)
+            process_obj_file(obj_path, device, faces_segm, seg_map_dict)
 
 if __name__ == '__main__':
     main()

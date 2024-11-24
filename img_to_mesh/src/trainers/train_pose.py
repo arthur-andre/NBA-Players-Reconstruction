@@ -10,6 +10,7 @@ import cv2
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import json
+import shutil
 
 import torch
 import torch.nn as nn
@@ -68,14 +69,13 @@ class TrainPose(object):
 
 
 
-    def demo(self, img_dir, out_dir):
-        # create folder
-        os.makedirs(osp.join(out_dir, '2d'), exist_ok=True)
-        os.makedirs(osp.join(out_dir, '3d_overlay'), exist_ok=True)
+    def demo(self, img_dir, out_dir, nba_videos = False):
+        # create folder npy
         os.makedirs(osp.join(out_dir, 'npy'), exist_ok=True)
         
         img_paths = sorted(glob(osp.join(img_dir,'*.png')),key=osp.getmtime)
-        print(len(img_paths))
+#        print(osp.join(img_dir,'*.png'))
+#        print(len(img_paths))
         normalize = transforms.Normalize(mean=constants.IMG_MEAN,
                                     std=constants.IMG_NORM)
         img_transform = transforms.Compose([
@@ -87,7 +87,6 @@ class TrainPose(object):
             pred_j2d_list,pred_j3d_list,pred_jump_cls_list,pred_jump_dist_list = [],[],[],[]
             img_path_list = []
             for idx, img_path in enumerate(img_paths):
-                print(img_path)
                 img_path_list.append(img_path)
                 # load img
                 rgb_img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB) # ndarray, (h,w,3), uint8, (0,255)
@@ -131,6 +130,12 @@ class TrainPose(object):
             all_jump_cls_np = np.array(pred_jump_cls_list)
             all_jump_dist_np = np.array(pred_jump_dist_list)
             all_j2d_preds_np = np.concatenate(pred_j2d_list,0)
+
+
+            all_j2d_preds_np = np.load(osp.join(out_dir,'npy','j2d.npy'))
+
+
+
             all_j3d_preds_np = np.concatenate(pred_j3d_list,0)
             assert all_jump_cls_np.shape[0] == all_jump_dist_np.shape[0] == \
                     all_j2d_preds_np.shape[0] == all_j3d_preds_np.shape[0] == len(img_path_list)
@@ -141,18 +146,87 @@ class TrainPose(object):
             pickle.dump(img_path_list, open(osp.join(out_dir,'npy','img_paths.pkl'),'wb'))
         
         # visualization
-        for idx, img_path in enumerate(img_paths):
-            print(idx)
-            rgb_img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
-            vis_rgb = cv2.imread(img_path)
-            vis_j2d = vis_skeleton(vis_rgb.copy(), all_j2d_preds_np[idx], self.parent_ids, self.right_joint_list)
-            vis_concat = np.concatenate((vis_rgb, vis_j2d),1)
-            cv2.imwrite(osp.join(out_dir,'2d','{:04d}.png'.format(idx)), vis_concat)
-            plot_3d_skeleton_demo(all_j3d_preds_np[idx], rgb_img, self.parent_ids, 
-                                osp.join(out_dir,'3d_overlay','{:04d}.png'.format(idx)),
-                                right_joint_list=self.right_joint_list)
+        if not nba_videos: 
+            os.makedirs(osp.join(out_dir, '2d'), exist_ok=True)
+            os.makedirs(osp.join(out_dir, '3d_overlay'), exist_ok=True)
+            for idx, img_path in enumerate(img_paths):
+                rgb_img = cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB)
+                vis_rgb = cv2.imread(img_path)
+                vis_j2d = vis_skeleton(vis_rgb.copy(), all_j2d_preds_np[idx], self.parent_ids, self.right_joint_list)
+                vis_concat = np.concatenate((vis_rgb, vis_j2d),1)
+                cv2.imwrite(osp.join(out_dir,'2d','{:04d}.png'.format(idx)), vis_concat)
+                plot_3d_skeleton_demo(all_j3d_preds_np[idx], rgb_img, self.parent_ids, 
+                                    osp.join(out_dir,'3d_overlay','{:04d}.png'.format(idx)),
+                                    right_joint_list=self.right_joint_list)
+
+def delete_folder(folder_path):
+    # Check if the folder exists
+    if os.path.exists(folder_path):
+        # Delete the folder and its contents
+        shutil.rmtree(folder_path)
+        print(f"Folder '{folder_path}' has been deleted.")
+    else:
+        print(f"Folder '{folder_path}' does not exist.")
 
 def createAndRunTrainer(gpu_id, opt):
+    opt.gpu_id = gpu_id
+    trainer = TrainPose(opt)
+    # Demo
+    if opt.exp_type == 'demo':
+        if opt.demo.nba_videos:
+            output_folder_name = '/n/holylfs05/LABS/pfister_lab/Lab/coxfs01/pfister_lab2/Lab/aandre/datasets/Input_Model/'+ str(opt.demo.output_name)
+            #input_file = '/n/holylfs05/LABS/pfister_lab/Lab/coxfs01/pfister_lab2/Lab/aandre/datasets/'+opt.demo.output_name+'/sorted_actions.json'
+            # input_file = '/n/home12/aandre/MixSortTracking/datasets/'+opt.demo.output_name+'/sorted_actions.json'
+            # with open(input_file, 'r') as f:
+            #     action_names = json.load(f)
+            action_names = [folder for folder in os.listdir(output_folder_name) if os.path.isdir(os.path.join(output_folder_name, folder))]
+            #action_names = sorted(action_names, key=int)
+            print("Number of actions found : ", len(action_names))
+            for action_name in action_names:
+                action_name = str(action_name)
+                print("Action nbr : ", action_name)
+                output_folder_name_action = os.path.join(output_folder_name, action_name)
+                nbr_of_frames = len([folder for folder in os.listdir(output_folder_name_action) if os.path.isdir(os.path.join(output_folder_name_action, folder))])
+                for i in range(nbr_of_frames+1):
+                    current_frame = i+1
+                    print("=> Running Pose for frame :", current_frame)
+                    img_dir = output_folder_name_action+'/frame_'+str(current_frame)+'/img_crop'
+                    out_dir = output_folder_name_action+'/frame_'+str(current_frame)
+                    #print(img_dir, out_dir)
+                    trainer.demo(img_dir, out_dir, True)
+                    if opt.demo.delete_folder:
+                        folder_to_delete = img_dir
+                        delete_folder(folder_to_delete)
+                
+        else:
+            print("###################")
+            print("One Action Inference")
+            print("###################")
+            if (opt.demo.starting_frame != None) and (opt.demo.ending_frame != None):
+                nbr_of_frames = opt.demo.ending_frame - opt.demo.starting_frame
+                output_folder_name = 'Input_Model/'+ opt.demo.output_name
+                for i in range(nbr_of_frames+1):
+                    current_frame = i+int(opt.demo.starting_frame)
+                    print("=> Running Pose for frame :", current_frame)
+                    img_dir = '../../'+output_folder_name+'/frame_'+str(current_frame)+'/img_crop'
+                    out_dir = '../../results/'+opt.demo.output_name+'/frame_'+str(current_frame)
+                    #print(img_dir, out_dir)
+                    trainer.demo(img_dir, out_dir, opt.demo.nba_videos)
+            else: 
+                print("=> Running Demo")
+                output_folder_name = 'Input_Model/'+ opt.demo.output_name
+                nbr_of_frames = len([folder for folder in os.listdir('../../'+output_folder_name) if os.path.isdir(os.path.join('../../'+output_folder_name, folder))])
+                for i in range(nbr_of_frames+1):
+                    current_frame = i+1
+                    print("=> Running Pose for frame :", current_frame)
+                    img_dir = '../../'+output_folder_name+'/frame_'+str(current_frame)+'/img_crop'
+                    out_dir = '../../results/'+opt.demo.output_name+'/frame_'+str(current_frame)
+                    #print(img_dir, out_dir)
+                    trainer.demo(img_dir, out_dir, opt.demo.nba_videos)
+    else:
+        raise ValueError('Experiment Type not supported.')
+
+def createAndRunTrainer_recup(gpu_id, opt):
     opt.gpu_id = gpu_id
     trainer = TrainPose(opt)
     # Demo

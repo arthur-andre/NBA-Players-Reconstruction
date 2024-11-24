@@ -339,7 +339,7 @@ class TrainMesh(object):
 
         if (exp_type == 'train' and iteration % self.opt.training.log_interval == 0) or (exp_type != 'train'):
             log_info = "===> Epoch[{}]({}/{}):".format(epoch, iteration, iter_len)
-            print(log_info)
+            #print(log_info)
             # logging identity net
             error = torch.mean(torch.sqrt(torch.sum((pred_rest_verts-target_rest_verts)**2,-1)),-1)
             mean_iden_error = torch.mean(error)
@@ -349,7 +349,7 @@ class TrainMesh(object):
                                 loss_dict['identity_loss'].item(),
                                 mean_iden_error.item()
                         )
-            print(log_info)
+            #print(log_info)
 
             for body_part in self.opt.body_part_list:
                 pred_verts_v = pred_dict[body_part+'_verts_v']
@@ -375,7 +375,7 @@ class TrainMesh(object):
                             loss_dict[body_part+'_loss_z'].item(),
                             mean_error_v.item(),
                             mean_error_j.item())
-                print(log_info)
+                #print(log_info)
 
         vis_cond1 = (exp_type == 'train') and (iteration % self.opt.training.train_vis_iter == 0)
         vis_cond2 = (exp_type == 'valid') and (iteration % self.opt.training.val_vis_iter == 0)
@@ -506,7 +506,7 @@ class TrainMesh(object):
             log_info = 'MPVPE: {:.5f}, MPVPE-PA: {:.5f}, EMD: {:.5f}, CD: {:.5f}\n'.format(
                 mean_mpvpe*1000, mean_mpvpe_pa*1000,
                 mean_emd, mean_cd*1000)
-            print(log_info)
+            #(log_info)
             with open(self.log_path, 'a') as f:
                 f.write(log_info)
 
@@ -579,8 +579,12 @@ class TrainMesh(object):
                 rot_mat, inv_rot_mat = self.get_rot_mat(j3d)
                 j3d_norm = np.dot(rot_mat, j3d.T).T
                 inp_j3d = torch.from_numpy(j3d_norm.copy()).float().unsqueeze(0).to(self.device)
+                with open('../../my_dict.pkl', 'wb') as f:
+                    pickle.dump(rest_verts_dict, f)
                 # skinningNet forward
                 pred_dict = self.skinning_model.test(inp_j3d, rest_verts_dict)
+                with open('../../my_dict_after_skinning.pkl', 'wb') as f:
+                    pickle.dump(pred_dict, f)
                 pred_verts = pred_dict['human_verts_j']
                 pred_verts_np = pred_verts[0].detach().cpu().numpy()
                 pred_verts_np = np.dot(inv_rot_mat, pred_verts_np.T).T
@@ -635,7 +639,7 @@ def move_position(cur_verts):
     
     return cur_verts
 
-def createAndRunTrainer(gpu_id, opt):
+def createAndRunTrainer_recup(gpu_id, opt):
     opt.gpu_id = gpu_id
     trainer = TrainMesh(opt)
     
@@ -647,5 +651,29 @@ def createAndRunTrainer(gpu_id, opt):
         trainer.test(trainer.test_data_loader, 'test')
     elif opt.exp_type == 'demo':
         print("=> Run Demo ")
-        print(opt.demo.inp_dir, opt.demo.out_dir)
         trainer.demo(opt.demo.inp_dir, opt.demo.out_dir)
+
+
+def createAndRunTrainer(gpu_id, opt):
+    opt.gpu_id = gpu_id
+    trainer = TrainMesh(opt)
+    # Training
+    if opt.exp_type == 'train':
+        print("=> Start Training")
+        trainer.train_epoch()
+    elif opt.exp_type == 'test':
+        trainer.test(trainer.test_data_loader, 'test')
+    elif opt.exp_type == 'demo':
+        if (opt.demo.starting_frame != None) and (opt.demo.ending_frame != None):
+            nbr_of_frames = opt.demo.ending_frame - opt.demo.starting_frame
+            for i in range(nbr_of_frames+1):
+                current_frame = i+int(opt.demo.starting_frame)
+                print("=> Running Demo for frame :", current_frame)
+                img_dir = '../../results/'+opt.demo.output_name+'/frame_'+str(current_frame)
+                out_dir = '../../results/'+opt.demo.output_name+'/frame_'+str(current_frame)
+                trainer.demo(img_dir, out_dir)
+        else:
+            print("=> Running Demo")
+            trainer.demo(opt.demo.inp_dir, opt.demo.out_dir)
+
+

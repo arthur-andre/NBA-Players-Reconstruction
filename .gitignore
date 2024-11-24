@@ -107,4 +107,16 @@ log/
 pretrained_ckpt/
 dist/
 *.egg-info/
-results/
+results/*
+data/*
+NBA_frames/*
+Input_Model/*
+img_to_mesh/log/*
+cuda-samples/
+
+
+# But don't ignore the folder itself or the .gitkeep file
+!results/.gitkeep
+!data/.gitkeep
+!Input_Model/.gitkeep
+!img_to_mesh/log/.gitkeep

@@ -16,8 +16,11 @@ seed:
 
 # demo setting
 demo:
+  starting_frame:
+  ending_frame:
   inp_dir:
   out_dir:
+  output_name:
 
 # data setting
 dataset:

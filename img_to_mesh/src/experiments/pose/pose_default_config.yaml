@@ -13,8 +13,13 @@ seed:
 
 # demo setting
 demo:
-  img_dir: 
+  nba_videos:
+  img_dir:
+  starting_frame:
+  ending_frame: 
   out_dir: 
+  output_name:
+  delete_folder: 
 
 # data setting
 dataset:

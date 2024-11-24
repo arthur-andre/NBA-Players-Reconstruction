@@ -1,6 +1,7 @@
 import os.path as osp
 import numpy as np
 import cv2
+import glob
 
 def resize_img(img, scale_factor):
     new_size = (np.floor(np.array(img.shape[0:2]) * scale_factor)).astype(int)
@@ -39,3 +40,53 @@ def scaleCrop(image, keypoints, scale, center, img_size=256):
         'img_size': img_size
     }
     return img_crop, keypoints_crop, proc_param
+
+
+def scaleCrop_only(image, scale, center, img_size=256):
+
+    # print("Image shape: ", image.shape)
+    # print("Scale: ", scale)
+    # print("Center: ", center)
+    if len(image.shape) == 3 and image.shape[2] == 4:
+        image = image[:, :, :3]
+    image_scaled, scale_factors = resize_img(image, scale)
+    # Swap so it's [x, y]
+    scale_factors = np.array([scale_factors[1], scale_factors[0]])
+    center_scaled = np.round(center * scale_factors).astype(np.int64)
+
+    margin = int(img_size / 2)
+    center_pad = center_scaled + margin
+    start_pt = center_pad - margin
+    end_pt = center_pad + margin
+    if len(image.shape) == 3: # rgb
+        image_pad = np.pad(image_scaled, ((margin, ), (margin, ), (0, )), mode='edge')
+        img_crop = image_pad[start_pt[1]:end_pt[1], start_pt[0]:end_pt[0], :]
+    else: # mask
+        image_pad = np.pad(image_scaled, ((margin, ), (margin, )), mode='edge')
+        img_crop = image_pad[start_pt[1]:end_pt[1], start_pt[0]:end_pt[0]]
+    proc_param = {
+        'scale': scale,
+        'start_pt': start_pt,
+        'end_pt': end_pt,
+        'img_size': img_size
+    }
+    return img_crop, proc_param
+
+
+def get_lines_with_number(input_pattern, number):
+    # Use glob to find all files matching the pattern
+    file_paths = glob.glob(input_pattern)
+    
+    matching_lines = []
+
+    for file_path in file_paths:
+        with open(file_path, 'r') as f:
+            lines = f.readlines()
+        
+        for line in lines:
+            # Split the line by comma
+            parts = line.strip().split(',')
+            if parts and parts[0] == str(number):
+                matching_lines.append(line)
+    
+    return matching_lines

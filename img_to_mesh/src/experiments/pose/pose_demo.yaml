@@ -11,9 +11,14 @@ seed:
 
 # demo setting
 demo:
-  subdir: lbj_dunk
-  img_dir: ../../data/${demo.subdir}/img_crop
+  nba_videos: False
+  subdir: frame_150
+  starting_frame:
+  ending_frame: 120
+  img_dir: ../../Input_NBA_model/${demo.subdir}/img_crop
   out_dir: ../../results/${demo.subdir}
+  output_name: fultz
+  delete_folder: False
 
 # data setting
 dataset:

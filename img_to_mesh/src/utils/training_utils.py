@@ -20,13 +20,19 @@ def restore(model, state_dict):
     restore_state_dict = state_dict
     restored_var_names = set()
     print('Restoring:')
+#    print('Model:', net_state_dict.keys())
+#    print('Model to be restored:', restore_state_dict.keys())
     for var_name in restore_state_dict.keys():
         if var_name in net_state_dict:
             var_size = net_state_dict[var_name].size()
             restore_size = restore_state_dict[var_name].size()
+#            print("var_size",var_size,"restore_size",restore_size)
             if var_size != restore_size:
-                # print('Shape mismatch for var', var_name, 'expected', var_size, 'got', restore_size)
+                #print('Shape mismatch for var', var_name, 'expected', var_size, 'got', restore_size)
+                restore_state_dict[var_name] = restore_state_dict[var_name][:, :var_size[1]]
                 pass
+            if False:
+                continue
             else:
                 if isinstance(net_state_dict[var_name], torch.nn.Parameter):
                     # backwards compatibility for serialized parameters

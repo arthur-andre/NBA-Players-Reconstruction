@@ -17,7 +17,7 @@ class HumanNetV2(nn.Module):
         self.device = torch.device(self.loc)
         # init body part model
         for body_part in self.opt.body_part_list:
-            print('init {} net'.format(body_part))
+            #print('init {} net'.format(body_part))
             model = self.init_model(body_part, sub_model_name)
             setattr(self, '{}_net'.format(body_part), model)
 

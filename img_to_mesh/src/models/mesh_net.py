@@ -82,7 +82,7 @@ class SpiralTLNetV2(nn.Module):
         self.device = device
         self.activation = activation
         self.nParts = nParts
-        
+        #print(filters_enc[0][0], spiral_sizes, filters_enc, activation)
         # conv 
         self.conv = []
         input_size = filters_enc[0][0]

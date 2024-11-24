@@ -47,7 +47,7 @@ class MeshJ3DGeneraldataset(Dataset):
         self.verts = np.array(verts_list)
         self.img_paths = np.array(img_path_list)
         assert self.j3d.shape[0] == self.verts.shape[0] == self.img_paths.shape[0]
-        print(self.j3d.shape, self.verts.shape, self.img_paths.shape)
+        #print(self.j3d.shape, self.verts.shape, self.img_paths.shape)
 
         # prepare rest verts dict
         pkl_path = osp.join(self.root_dir, 'template', 'template.pkl')

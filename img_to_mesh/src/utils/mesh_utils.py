@@ -38,7 +38,7 @@ def process_mesh(opt, body_part, device):
                         meshpackage=opt.dataset.meshpackage, load_flag = True)
 
     pkl_path = osp.join(constants.MESH_DATA_DIR, body_part,'{}.pkl'.format(ds_factors))
-    print(pkl_path)
+    #print(pkl_path)
     if not osp.exists(pkl_path):
         if shapedata.meshpackage == 'trimesh':
             raise NotImplementedError('Rerun with mpi-mesh as meshpackage')

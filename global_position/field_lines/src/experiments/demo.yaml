@@ -10,9 +10,10 @@ vis_gpu: '0'
 seed: 
 
 demo:
-  subdir: lbj_dunk
-  img_dir: ../../../data/${demo.subdir}/images
-  out_dir: ../../../results/${demo.subdir}/field_lines
+  subdir: frame_50
+  outdir: fultz
+  img_dir: ../../../Input_Model/${demo.outdir}/${demo.subdir}/images
+  out_dir: ../../../results/${demo.outdir}/${demo.subdir}/field_lines
 
 # data setting
 dataset:

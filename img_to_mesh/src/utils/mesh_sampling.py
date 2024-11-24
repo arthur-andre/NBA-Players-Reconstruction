@@ -259,7 +259,7 @@ def generate_transform_matrices(mesh, factors):
         M.append(new_mesh)
         A.append(get_vert_connectivity(new_mesh.v, new_mesh.f))
         U.append(setup_deformation_transfer(M[-1], M[-2]))
-        print('decimation %d by factor %.2f finished' %(i,factor))
+        #print('decimation %d by factor %.2f finished' %(i,factor))
         i+=1
 
     return M,A,D,U, F

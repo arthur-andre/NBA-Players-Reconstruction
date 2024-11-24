@@ -50,6 +50,7 @@ class TrainPix2pix(object):
     def demo(self, img_dir, out_dir):
         os.makedirs(out_dir, exist_ok=True)
         img_paths = sorted(glob(osp.join(img_dir,'*.png')), key=osp.getmtime)
+        print(img_paths)
         to_tensor = transforms.ToTensor()
         resize = iaa.Resize({"height": self.opt.dataset.rgb_res[0], "width": self.opt.dataset.rgb_res[1]})
         with torch.no_grad():

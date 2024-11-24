@@ -4,13 +4,14 @@ from glob import glob
 import pickle
 import shutil
 import numpy as np
+import argparse
 import cv2
 from utils import *
 
 
 def load_j2d(data_dir, result_dir, idx, img_name):
     ''' load 2d joints '''
-    print('Load 2d joints')
+    #print('Load 2d joints')
     all_j2d = np.load(osp.join(result_dir,'npy','j2d.npy'))
     proc_param_path = osp.join(data_dir, 'proc_param','{}.pkl'.format(img_name))
     proc_param = pickle.load(open(proc_param_path,'rb'))
@@ -23,14 +24,14 @@ def load_j2d(data_dir, result_dir, idx, img_name):
 
 def load_j3d(result_dir, idx):
     ''' load 3d joints '''
-    print('Load 3d joints')
+    #print('Load 3d joints')
     all_j3d = np.load(osp.join(result_dir,'npy','j3d.npy'))
     cur_j3d = all_j3d[idx]
     return cur_j3d
 
 def load_jump_height(result_dir, idx):
     ''' load jump height '''
-    print('Load jump height')
+    #print('Load jump height')
     all_jump_dist = np.load(osp.join(result_dir,'npy','all_jump_dist.npy'))
     all_jump_cls = np.load(osp.join(result_dir,'npy','all_jump_cls.npy'))
     cur_jump_dist = all_jump_dist[idx]
@@ -41,17 +42,25 @@ def load_jump_height(result_dir, idx):
         # set threshold for jumping
         return min(1.0, cur_jump_dist)
 
-def load_cam(result_dir, img_name):
+def load_cam(result_dir, img_name, out_dir, same_cam=False, frame_same = None):
     ''' load camera parameters '''
-    print('load camera parameters')
-    A = pickle.load(open(osp.join(result_dir, 'cams', '{}_A.npy'.format(img_name)),'rb'))
-    R = pickle.load(open(osp.join(result_dir, 'cams', '{}_R.npy'.format(img_name)),'rb'))
-    T = pickle.load(open(osp.join(result_dir, 'cams', '{}_T.npy'.format(img_name)),'rb')).ravel()
-    return A, R, T
+    #print('load camera parameters')
+    if same_cam:
+        img_name = 'frame'
+        result_dir = '../../results/'+out_dir+'/frame_'+frame_same
+        A = pickle.load(open(osp.join(result_dir, 'cams', '{}_A.npy'.format(img_name)),'rb'))
+        R = pickle.load(open(osp.join(result_dir, 'cams', '{}_R.npy'.format(img_name)),'rb'))
+        T = pickle.load(open(osp.join(result_dir, 'cams', '{}_T.npy'.format(img_name)),'rb')).ravel()
+        return A, R, T
+    else:
+        A = pickle.load(open(osp.join(result_dir, 'cams', '{}_A.npy'.format(img_name)),'rb'))
+        R = pickle.load(open(osp.join(result_dir, 'cams', '{}_R.npy'.format(img_name)),'rb'))
+        T = pickle.load(open(osp.join(result_dir, 'cams', '{}_T.npy'.format(img_name)),'rb')).ravel()
+        return A, R, T
 
 def load_lowet_mesh_vertex(result_dir, img_name):
     ''' get the lowest mesh vertex '''
-    print('get the lowest mesh vertex')
+    #print('get the lowest mesh vertex')
     obj_path = osp.join(result_dir, 'objs','{}.obj'.format(img_name))
     all_v,_,_,_ = readObjV2(obj_path)
     ind = np.argmin(all_v, axis=0)
@@ -60,7 +69,7 @@ def load_lowet_mesh_vertex(result_dir, img_name):
 
 def compute_offset(cur_j2d, cur_j3d, cur_lowest_v, A, R, T, jump_height=0):
     ''' compute offset '''
-    print('compute offset')
+    #print('compute offset')
     min_id = np.argmin(cur_j3d,0)[1]
     xp = cur_j2d[min_id,0]
     yp = cur_j2d[min_id,1]
@@ -82,7 +91,7 @@ def compute_offset(cur_j2d, cur_j3d, cur_lowest_v, A, R, T, jump_height=0):
 
 def write_mesh(offset, result_dir, img_name, aux_angle=0):
     # write results
-    print('write results')
+    #print('write results')
     obj_dir = osp.join(result_dir, 'objs')
     write_dir = osp.join(result_dir, 'global_objs')
     os.makedirs(write_dir, exist_ok=True)
@@ -98,23 +107,33 @@ def write_mesh(offset, result_dir, img_name, aux_angle=0):
     dst_path = osp.join(write_dir, '{}.obj'.format(img_name))
     writeObj(verts, obj_path, dst_path)
 
-def main():
-    subdir = 'lbj_dunk'
-    data_dir = '../../data/{}'.format(subdir)
-    result_dir = '../../results/{}'.format(subdir)
-    img_path_list = sorted(glob(osp.join(data_dir, 'img_crop', '*.png')), key=osp.getmtime)
-    
-    for idx, img_path in enumerate(img_path_list):
-        img_name = img_path.split('/')[-1].replace('.png','')
-        cur_j2d = load_j2d(data_dir, result_dir, idx, img_name)
-        cur_j3d = load_j3d(result_dir, idx)
-        cur_jump_dist = load_jump_height(result_dir, idx)
-        substr = '_'+img_path.split('/')[-1].split('_')[-1]
-        full_img_name = img_path.split('/')[-1].replace(substr, '')
-        A, R, T = load_cam(result_dir, full_img_name)
-        cur_lowest_v = load_lowet_mesh_vertex(result_dir, img_name)
-        offset = compute_offset(cur_j2d, cur_j3d, cur_lowest_v, A, R, T, cur_jump_dist)
-        write_mesh(offset, result_dir, img_name)
+def main(first_frame, last_frame, output_name, calibr_img):
+    for i in range(first_frame, last_frame+1):
+        if (i % 30) == 0:
+            print("output of frame : ", i)
+        subdir = 'frame_{}'.format(i)
+        data_dir = '../../Input_Model/{}/{}'.format(output_name, subdir)
+        result_dir = '../../results/{}/{}'.format(output_name, subdir)
+        img_path_list = sorted(glob(osp.join(data_dir, 'img_crop', '*.png')), key=osp.getmtime)
+        for idx, img_path in enumerate(img_path_list):
 
-if __name__ == '__main__':
-    main()
+            img_name = img_path.split('/')[-1].replace('.png','')
+            cur_j2d = load_j2d(data_dir, result_dir, idx, img_name)
+            cur_j3d = load_j3d(result_dir, idx)
+            cur_jump_dist = load_jump_height(result_dir, idx)
+            substr = '_'+img_path.split('/')[-1].split('_')[-1]
+            full_img_name = img_path.split('/')[-1].replace(substr, '')
+            A, R, T = load_cam(result_dir, full_img_name, output_name ,same_cam=True, frame_same = calibr_img)                # change here if same camera or not
+            cur_lowest_v = load_lowet_mesh_vertex(result_dir, img_name)
+            offset = compute_offset(cur_j2d, cur_j3d, cur_lowest_v, A, R, T, cur_jump_dist)
+            write_mesh(offset, result_dir, img_name)     
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Process frames.")
+    parser.add_argument('--first_frame', type=int, required=True, help='The first frame to process.')
+    parser.add_argument('--last_frame', type=int, required=True, help='The last frame to process.')
+    parser.add_argument('--output_name', type=str, required=True, help='The name for the output.')
+    parser.add_argument('--calibr_img', type=str, required=True, help='The Calibration image name.')
+    args = parser.parse_args()
+    main(args.first_frame, args.last_frame, args.output_name, args.calibr_img)
